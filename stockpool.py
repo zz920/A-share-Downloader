@@ -1,11 +1,12 @@
 import tushare as ts
 
 
-class stockpool():
+class stockbase():
 
     def __init__(self):
 
         self._data = None
+        self._getsource()
 
     def isvalid(self):
 
@@ -31,6 +32,8 @@ class stockpool():
 
         self._data = ts.get_stock_basics()
 
+        print("Message: stockbase updating finish.")
+
         return self.isvalid()
 
     def get_stock_sday(self, stock_id):
@@ -55,6 +58,10 @@ class stockpool():
         return None
 
     def iterstock(self):
+
+        """
+        # iterator of stock code list
+        """
 
         for stock in self._data.index:
             if stock is not None:
