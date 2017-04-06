@@ -20,7 +20,6 @@ def collect_detail(code=None, date=None, retry_count=4, pause=2):
 
     try:
         data = ts.get_tick_data(code, date, retry_count, pause)
-        print(code, date, retry_count, pause)
         if data is None:
             raise(ValueError("stock code or date invalid"))
         print("Message: success getting %s data in %s." % (code, date))
