@@ -1,3 +1,4 @@
+import logging
 import tushare as ts
 import datetime as dt
 
@@ -33,8 +34,6 @@ class StockBase():
 
         self._data = ts.get_stock_basics()
 
-        print("Message: stockbase updating finish.")
-
         return self.isvalid()
 
     def stock_date_iter(self, stock_id, start=None, end=None):
@@ -52,18 +51,18 @@ class StockBase():
         """
 
         if start is not None and not isinstance(start, int): 
-            print("ValueError: start or number should be integer.")
+            logging.error("ValueError: start or number should be integer.")
             return None
 
         if end is not None and not isinstance(end, int):
-            print("ValueError: start or number should be integer.")
+            logging.error("ValueError: start or number should be integer.")
             return None
 
-        print("Message: try to get %s date information." % stock_id)
+        logging.debug("Try to get %s date information." % stock_id)
         try:
             start_date = self._data.ix[stock_id]['timeToMarket']
         except Exception as e:
-            print("ValueError: stock %s does not exist in stock pool." % stock_id)
+            logging.error("ValueError: stock %s does not exist in stock pool." % stock_id)
             return None
         else:
             if start_date == 0: 
@@ -97,11 +96,11 @@ class StockBase():
         """
 
         if start is not None and not isinstance(start, int): 
-            print("ValueError: start or number should be integer.")
+            logging.error("ValueError: start or number should be integer.")
             return None
 
         if end is not None and not isinstance(end, int):
-            print("ValueError: start or number should be integer.")
+            logging.error("ValueError: start or number should be integer.")
             return None
 
         numrange = slice(start, end)

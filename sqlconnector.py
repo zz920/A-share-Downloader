@@ -1,3 +1,4 @@
+import logging
 import sqlalchemy as sql
 
 
@@ -36,7 +37,7 @@ class SqlConnector():
                 session.close()
 
             except Exception as e:
-                print("SQLError: %s" % e)
+                logging.error("SQLError: %s" % e)
             else:
                 return True
 
@@ -57,7 +58,7 @@ class SqlConnector():
 
         if obj is not None:
             if model is None or not isinstance(obj, list):
-                print("ValueError: model class or obj invalid.")
+                logging.error("ValueError: model class or obj invalid.")
                 return False
             try:
                 model.metadata.create_all(self._connection)
@@ -70,7 +71,7 @@ class SqlConnector():
                 session.commit()
                 session.close()
             except Exception as e:
-                print("SQLError: %s" % e)
+                logging.error("SQLError: %s" % e)
             else:
                 return True
         return False
