@@ -8,7 +8,7 @@ def collect_detail(code=None, date=None, retry_count=4, pause=2):
     """
     # collect history trade detail
     #
-    # Parameters:
+    # parameter:
     #  code : string  |stock id
     #  date : string  |target date
     #  retry_count : int  | retry times
@@ -31,7 +31,7 @@ def collect_detail(code=None, date=None, retry_count=4, pause=2):
         if isinstance(e, IOError):
             # deal with the no result case
             logging.error("IOError: tushare get_tick_data function failed. info: %s" % e)
-            return (code, date)
+            return None
 
         elif isinstance(e, ValueError):
             # deal with the data format invalid case
@@ -41,3 +41,25 @@ def collect_detail(code=None, date=None, retry_count=4, pause=2):
 
     else:
         return data
+
+def data_adapter(date, dataframe):
+
+    """
+    # Convert dataframe to a dict
+    # *Stock column is deleted, now the table name is Stock_id.
+    # *This modification will increase the inserting speed.
+    #
+    # parameter:
+    #   date : string | dateinformation
+    #   dataframe : Dataframe | result
+    #
+    # return:
+    #   data : dict
+    """
+
+    dataframe['date'] = date
+
+    dataframe.drop('change', axis=1, inplace=True)
+
+    return dataframe.to_dict(orient='records')
+

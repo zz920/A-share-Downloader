@@ -11,10 +11,10 @@ import configure as CONF
 
 from stockpool import StockBase
 from sqlconnector import SqlConnector
-from stockmodel import StockTradeRecord
+from stockmodel import get_stock_class
 
 
-class StockDownloader():
+class DownloadManager():
 
     def __init__(self, max_proc_num=4, sql_engine_URL=None):
 
@@ -39,6 +39,7 @@ class StockDownloader():
 
     def run(self):
 
+        logging.info("The DownloadManager Start.")
         valid_cnt = 0
 
         while not self._stockpool.isvalid() and valid_cnt < 5:
@@ -51,59 +52,30 @@ class StockDownloader():
             raise RuntimeError("stock pool establish runtime")
 
         for stock in self._stockpool.stock_id_iter(400, 401):
+
+            logging.info("Establish table for stock %s, download processing will start soon." % stock)
+
+            stock_table = get_stock_class(stock)
+            self._connector.create_table(stock_table)
+
+            def _tosql(data, stock, date):
+                if data is None:
+                    self._save(stock, date)
+                if len(data) < 10:
+                    pass
+                else:
+                    self._connector.push_frame(stock_table,
+                                collector.data_adapter(date, data))
+
             for date in self._stockpool.stock_date_iter(stock):
-                    result = self._processpool.apply_async(
+                self._processpool.apply_async(
                         collector.collect_detail,
-                        (stock, date)
+                        (stock, date),
+                        callback=partial(_tosql, **{'stock':stock, 'date':date})
                     )
-                    result.get()
- 
+
         self._processpool.close()
         self._processpool.join()
-
-    def _step(self, stock_id=None, date=None):
-
-        """
-        # single step of downloading
-        #
-        # parameters:
-        #   stock_id : string | stock id 
-        #   date : string | date
-        # return:
-        #   status : Boolean | success status
-        """
-
-        data = collector.collect_detail(stock_id, date)
- 
-        # fail to get data file with collector
-        if isinstance(data, tuple):
-            #plock.acquire()
-            if not self._save(*data):
-                logging.error("data: %s @ %s did not saved." % (stock_id, date))
-            #plock.release()
-            return None
-
-        # save data in the database
-        if isinstance(data, frame.DataFrame):
-            if len(data) < 10:
-                return None
-
-        return data
-
-    def _sendtodb(self):
-
-        """
-        # send to database
-        """
-        logging.debug("Try to push %s@%s in to sql." % (stock_id, date))
-        data['stock_id'] = stock_id
-        data['time'] = data['time'].map(
-            lambda x: datetime.datetime.strptime(date+x, "%Y-%m-%d%H:%M:%S")
-        )
-        data.drop('change', axis=1, inplace=True)
-
-        self._connector.push_frame(StockTradeRecord, data.to_dict(orient='records'))
-        
 
     def _save(self, code, date, filepath=CONF.DATAFILENAME):
 
@@ -138,23 +110,9 @@ class StockDownloader():
             return None
         return result
 
-    def __getstate__(self):
-
-        """
-        # Problem: http://stackoverflow.com/questions/25382455/python-notimplementederror-pool-objects-cannot-be-passed-between-processes
-        """
-
-        self_dict = self.__dict__.copy()
-        del self_dict['_processpool']
-        return self_dict
-
-    def __setstate__(self, state):
-        self.__dict__.update(state)
-
 if __name__ == '__main__':
     start = datetime.datetime.now()
-    stockdownload = StockDownloader(10, CONF.DB_CONNECTION)
+    stockdownload = DownloadManager(20, CONF.DB_CONNECTION)
     stockdownload.run()
     end = datetime.datetime.now()
-
     logging.info("Stock download finished in %ss" % str(end-start))

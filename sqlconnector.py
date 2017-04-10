@@ -29,8 +29,6 @@ class SqlConnector():
 
         if obj is not None:
             try:
-                obj.metadata.create_all(self._connection)
-
                 session = self._DBsession()
                 session.add(obj)
                 session.commit()
@@ -61,8 +59,6 @@ class SqlConnector():
                 logging.error("ValueError: model class or obj invalid.")
                 return False
             try:
-                model.metadata.create_all(self._connection)
-
                 session = self._DBsession()
                 session.execute(
                     model.__table__.insert(),
@@ -76,4 +72,10 @@ class SqlConnector():
                 return True
         return False
 
+    def create_table(self, model):
+
+        try:
+            model.metadata.create_all(self._connection)
+        except Exception as e:
+            logging.error("SQLError: %s" % e)
 
