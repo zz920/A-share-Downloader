@@ -2,6 +2,7 @@ import datetime
 import multiprocessing
 import logging
 import time
+import os
 import _pickle as pickle
 from functools import partial
 from pandas.core import frame
@@ -21,21 +22,12 @@ class DownloadManager():
         self._stockpool = StockBase()
         self._processpool = multiprocessing.Pool(max_proc_num)
 
-        # process manager
-        _manager = multiprocessing.Manager()
-        self._queue = _manager.Queue()
-
         # sql connector
         self._connector = SqlConnector(sql_engine_URL)
 
         # clean the pickle file
-        """
-        try:
-            with open(CONF.DATAFILENAME,'wb') as f:
-                f.write('')
-        except:
-            pass
-        """
+        self._pkl_list = self._load()
+        os.remove(CONF.DATAFILENAME)
 
     def run(self):
 
@@ -51,28 +43,35 @@ class DownloadManager():
             logging.error("RuntimeError: download stock pool runtime.")
             raise RuntimeError("stock pool establish runtime")
 
-        for stock in self._stockpool.stock_id_iter(400, 401):
+        def _tosql(data, model, stock, date):
+            if data is None:
+                self._save(stock, date)
+                return
+            if len(data) < 10:
+                pass
+            else:
+                self._connector.push_frame(model,
+                    collector.data_adapter(date, data))
+
+        # redownload stock in pkl file
+        if len(self._pkl_list):
+            logging.info("Download stock in pkl file.")
+            for code, date in self._pkl_list:
+                _tosql(collector.collect_detail(code, date))
+
+        for stock in self._stockpool.stock_id_iter(0, 3):
 
             logging.info("Establish table for stock %s, download processing will start soon." % stock)
 
             stock_table = get_stock_class(stock)
             self._connector.create_table(stock_table)
 
-            def _tosql(data, stock, date):
-                if data is None:
-                    self._save(stock, date)
-                if len(data) < 10:
-                    pass
-                else:
-                    self._connector.push_frame(stock_table,
-                                collector.data_adapter(date, data))
-
             for date in self._stockpool.stock_date_iter(stock):
                 self._processpool.apply_async(
-                        collector.collect_detail,
-                        (stock, date),
-                        callback=partial(_tosql, **{'stock':stock, 'date':date})
-                    )
+                    collector.collect_detail,
+                    (stock, date),
+                    callback=partial(_tosql, **{'model':stock_table, 'stock':stock, 'date':date})
+                )
 
         self._processpool.close()
         self._processpool.join()
@@ -107,8 +106,8 @@ class DownloadManager():
                         break
         except Exception as e:
             logging.error(e)
-            return None
-        return result
+        finally:
+            return result
 
 if __name__ == '__main__':
     start = datetime.datetime.now()
