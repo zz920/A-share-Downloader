@@ -14,7 +14,7 @@ BASE_DIR = os.getcwd()
 #//////////////////
 
 # FORMART 'dbtype://username:password@ip:port/dbname'
-DB_CONNECTION = 'postgresql://123:123@localhost:5432/stockdb'
+DB_CONNECTION = 'postgresql://zhibowen:zhibowen@localhost:5432/stockdb'
 
 
 #/////////////
