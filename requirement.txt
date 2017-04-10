@@ -1,0 +1,6 @@
+lxml==3.3.3
+numpy==1.11.3
+pandocfilters==1.4.1
+psycopg2==2.7.1
+SQLAlchemy==1.1.8
+tushare==0.7.4
