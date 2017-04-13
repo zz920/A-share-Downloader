@@ -72,6 +72,33 @@ class SqlConnector():
                 return True
         return False
 
+    def copy_csvfile(self, table, filepath):
+
+        """
+        # To increase the speed, use copy method to insert a cvs file into the
+        # table. 5M trade recoders take about 40s.
+        #
+        # Parameter:
+        #   table : string | data table name
+        #   filepath : string | csv file path
+        #
+        # return:
+        #   operation success status : boolean
+        """
+
+        try:
+            session = self._DBsession()
+            _query = "COPY {} (time, price, volume, amount, type, date) FROM '{}' with csv header".format(
+                table, filepath)
+            session.execute(_query)
+            session.commit()
+            session.close()
+        except Exception as e:
+            logging.error("SQLError: %s" % e)
+        else:
+            return True
+        return False
+
     def create_table(self, model):
 
         try:

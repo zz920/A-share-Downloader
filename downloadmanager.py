@@ -1,18 +1,12 @@
-import datetime
-import multiprocessing
-import logging
 import time
 import os
-import _pickle as pickle
-from functools import partial
-from pandas.core import frame
+import logging
+import multiprocessing
 
-import collector
 import configure as CONF
-
-from stockpool import StockBase
-from sqlconnector import SqlConnector
-from stockmodel import get_stock_class
+from util import *
+from interface import SQLManager
+from model import StockBase, get_stock_class
 
 
 class DownloadManager():
@@ -20,16 +14,16 @@ class DownloadManager():
     def __init__(self, max_proc_num=4, sql_engine_URL=None):
 
         self._stockpool = StockBase()
-        self._processpool = multiprocessing.Pool(max_proc_num)
+        self._max_proc_num = max_proc_num
 
-        # sql connector
-        self._connector = SqlConnector(sql_engine_URL)
+        _q = multiprocessing.Manager().Queue(2 * max_proc_num)
+        self._sqlmanager = SQLManager(_q, sql_engine_URL)
+        self._que = _q
 
-        # clean the pickle file
-        self._pkl_list = self._load()
-        os.remove(CONF.DATAFILENAME)
+        self._pkl_list = load_from_pkl(CONF.DATAFILENAME)
+        remove_pkl(CONF.DATAFILENAME)
 
-    def run(self):
+    def start(self):
 
         logging.info("The DownloadManager Start.")
         valid_cnt = 0
@@ -43,75 +37,73 @@ class DownloadManager():
             logging.error("RuntimeError: download stock pool runtime.")
             raise RuntimeError("stock pool establish runtime")
 
-        def _tosql(data, model, stock, date):
-            if data is None:
-                self._save(stock, date)
-                return
-            if len(data) < 10:
-                pass
-            else:
-                self._connector.push_frame(model,
-                    collector.data_adapter(date, data))
+        self._sqlmanager.start()
 
-        # redownload stock in pkl file
+        # insert single data
+        '''
         if len(self._pkl_list):
-            logging.info("Download stock in pkl file.")
-            for code, date in self._pkl_list:
-                _tosql(collector.collect_detail(code, date))
+            logging.info("Start downloading the stock data in pkl file.")
+            for stock, date in self._pkl_list:
+                data = collect_detail(stock, date)
+        '''
 
-        for stock in self._stockpool.stock_id_iter(0, 3):
+        for stock in self._stockpool.stock_id_iter(100, 102):
 
             logging.info("Establish table for stock %s, download processing will start soon." % stock)
 
             stock_table = get_stock_class(stock)
-            self._connector.create_table(stock_table)
+            self._sqlmanager.create_table(stock_table)
 
+            pool = multiprocessing.Pool(self._max_proc_num)
+
+            logging.info("Stock %s start downloading." % stock)
+            result = []
             for date in self._stockpool.stock_date_iter(stock):
-                self._processpool.apply_async(
-                    collector.collect_detail,
-                    (stock, date),
-                    callback=partial(_tosql, **{'model':stock_table, 'stock':stock, 'date':date})
-                )
+                result.append(pool.apply_async(
+                    _save,
+                    (stock, date)
+                ))
 
-        self._processpool.close()
-        self._processpool.join()
+            # wait for all process end.
+            for item in result:
+                while not item.ready():
+                    time.sleep(1)
+ 
+            pool.close()
+            pool.join()
 
-    def _save(self, code, date, filepath=CONF.DATAFILENAME):
+            logging.info("Stock %s finished." % stock)
+            filename = stock + ".csv"
+            tablename = stock_table.__tablename__
+            tmpfile = os.path.join(CONF.TMPFILEDIR, filename)
 
-        """
-        # pickle stock (code, date) pair into file
-        # the multiprocessing lock problem should be sloved later
-        """
+            self._que.put((tmpfile, tablename))
 
-        try:
-            with open(filepath, 'ab') as pklfile:
-                pickle.dump((code, date), pklfile)
-        except Exception as e:
-            logging.error(e)
-            return False
-        return True
+        # wait until sql copy finished.
+        while self._sqlmanager.is_alive():
+            self._que.put(0)  # STOP SIGNAL
+            time.sleep(3)
+        logging.info("Stock download finished.")
 
-    def _load(self, filepath=CONF.DATAFILENAME):
 
-        """
-        # load pkl file to get target (stock, date) pairs
-        """
-        result = []
-        try:
-            with open(filepath, 'rb') as pklfile:
-                while True:
-                    try:
-                        result.append(pickle.load(pklfile))
-                    except EOFError:
-                        break
-        except Exception as e:
-            logging.error(e)
-        finally:
-            return result
+def _save(stock, date):
+    data = collect_detail(stock, date, pause=1)
+    if data is None:
+        pfile = CONF.DATAFILENAME
+        if not os.path.exists(pfile):
+            os.mknod(pfile)
+        append_to_pkl((stock, date), pfile)
+        return
+    if len(data) < 10:
+        return
+    data = data_adapter(date, data)
+
+    filename = stock + ".csv"
+    tmpfile = os.path.join(CONF.TMPFILEDIR, filename)
+    save_to_csv(data, tmpfile)
+
 
 if __name__ == '__main__':
-    start = datetime.datetime.now()
-    stockdownload = DownloadManager(20, CONF.DB_CONNECTION)
-    stockdownload.run()
-    end = datetime.datetime.now()
-    logging.info("Stock download finished in %ss" % str(end-start))
+
+    stockdownload = DownloadManager(50, CONF.DB_CONNECTION)
+    stockdownload.start()

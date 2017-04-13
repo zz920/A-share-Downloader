@@ -47,3 +47,6 @@ logging.basicConfig(
 
 # DEFAULT PICKLE FILE PATH
 DATAFILENAME = os.path.join(BASE_DIR, 'stock.pkl')
+
+# TMP FILE DIRECTORY PATH
+TMPFILEDIR = os.path.join(BASE_DIR, '_tmp')

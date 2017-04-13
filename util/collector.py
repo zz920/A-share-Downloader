@@ -61,5 +61,5 @@ def data_adapter(date, dataframe):
 
     dataframe.drop('change', axis=1, inplace=True)
 
-    return dataframe.to_dict(orient='records')
+    return dataframe
 

@@ -17,7 +17,9 @@ class StockTradeRecord(object):
     amount = Column(BigInteger)
     type = Column(String(4))
 
+
 StockBaseTable = declarative_base(cls=StockTradeRecord)
+
 
 def get_stock_class(stock_id):
 
