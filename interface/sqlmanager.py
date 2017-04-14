@@ -25,11 +25,11 @@ class SQLManager(Process):
             csvfile, table = signal
 
             if os.path.exists(csvfile):
-                self._connector.copy_csvfile(table, csvfile)
+                status = self._connector.copy_csvfile(table, csvfile)
 
             try:
-                os.remove(csvfile)
-                pass
+                if status:
+                    os.remove(csvfile)
             except:
                 logging.error("FileError: can't remove file located in %s" % csvfile)
 

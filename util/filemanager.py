@@ -3,7 +3,34 @@ import _pickle as pickle
 import logging
 
 
+def write_to_pkl(data, filepath):
+
+    """
+    # write data into a pickle file
+    #
+    # parameter:
+    #   data : any picklable type | picklable data
+    #   filepath : string | pickle file
+    #
+    # return:
+    #   status : Boolean | success status
+    """
+
+    if filepath.endswith(".pkl"):
+        try:
+            with open(filepath, 'wb') as pklfile:
+                pickle.dump(data, pklfile)
+        except Exception as e:
+            logging.error("IOError: %s" % e)
+            return False
+    else:
+        logging.error("File %s is not pickle type file." % filepath)
+        return False
+    return True
+
+
 def append_to_pkl(data, filepath):
+
     """
     # append data into an existent pickle file
     #
@@ -14,6 +41,7 @@ def append_to_pkl(data, filepath):
     # return:
     #   status : Boolean | success status
     """
+
     if os.path.exists(filepath) and os.path.isfile(filepath):
         if filepath.endswith(".pkl"):
             try:

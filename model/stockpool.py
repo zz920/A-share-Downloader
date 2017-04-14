@@ -5,10 +5,13 @@ import datetime as dt
 
 class StockBase():
 
-    def __init__(self):
+    def __init__(self, data=None):
 
-        self._data = None
-        self._getsource()
+        if data is None:
+            self._data = None
+            self._getsource()
+        else:
+            self._data = data
 
     def isvalid(self):
 
@@ -35,6 +38,9 @@ class StockBase():
         self._data = ts.get_stock_basics()
 
         return self.isvalid()
+
+    def getdata(self):
+        return self._data
 
     def stock_date_iter(self, stock_id, start=None, end=None):
 
