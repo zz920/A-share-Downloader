@@ -56,6 +56,8 @@ class DownloadManager():
                 _save(stock, date)
                 stock_table = get_stock_class(stock)
                 filepath = os.path.join(CONF.TMPFILEDIR, stock + ".csv")
+                # ensure the table exist
+                self._sqlmanager.create_table(stock_table)
                 self._que.put((filepath, stock_table.__tablename__))
 
 
